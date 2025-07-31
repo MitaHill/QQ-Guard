@@ -1,0 +1,104 @@
+文件夹 PATH 列表
+卷序列号为 6CAE-08C9
+C:.
+│  main.py
+│  tree.txt
+│  violation_ranking.png
+│  
+├─.idea
+│  │  .gitignore
+│  │  misc.xml
+│  │  modules.xml
+│  │  QQbot.iml
+│  │  vcs.xml
+│  │  
+│  └─inspectionProfiles
+│          profiles_settings.xml
+│          Project_Default.xml
+│          
+├─config
+│      black-rules.txt
+│      config.json
+│      ctl-list.txt
+│      monitor-groups.txt
+│      qq_bot_api.json
+│      system-log.txt
+│      website-white.txt
+│      white-group.txt
+│      white-member.txt
+│      
+├─info2ai
+│  │  app.py
+│  │  conversation_history.json
+│  │  info2ai-config.json
+│  │  prompt.txt
+│  │  
+│  └─prompt-files
+│          博彩诈骗内容.txt
+│          开盒内容.txt
+│          意思相近的内容.txt
+│          政治敏感内容.txt
+│          敏感词列表.txt
+│          现代网络用语映射表.txt
+│          白名单词语列表.txt
+│          网络平台媒体屏蔽.txt
+│          
+├─log
+│      chat.csv
+│      sys.log
+│      
+└─src
+    │  back.py
+    │  black_rules.py
+    │  draw_top.py
+    │  queue.py
+    │  send2.py
+    │  send_message.py
+    │  src.py
+    │  use_info2ai_api.py
+    │  use_qq_bot_api.py
+    │  white_group.py
+    │  white_list_website.py
+    │  white_member.py
+    │  
+    ├─log
+    │  │  csv.py
+    │  │  sys.py
+    │  │  
+    │  └─__pycache__
+    │          csv.cpython-311.pyc
+    │          csv.cpython-38.pyc
+    │          sys.cpython-311.pyc
+    │          sys.cpython-38.pyc
+    │          
+    ├─monitor
+    │  │  app.py
+    │  │  
+    │  └─__pycache__
+    │          app.cpython-311.pyc
+    │          app.cpython-38.pyc
+    │          
+    └─__pycache__
+            back.cpython-311.pyc
+            back.cpython-38.pyc
+            black_rules.cpython-311.pyc
+            black_rules.cpython-38.pyc
+            draw_top.cpython-311.pyc
+            draw_top.cpython-38.pyc
+            queue.cpython-311.pyc
+            queue.cpython-38.pyc
+            send2.cpython-311.pyc
+            send2.cpython-38.pyc
+            send_message.cpython-311.pyc
+            send_message.cpython-38.pyc
+            use_info2ai_api.cpython-311.pyc
+            use_info2ai_api.cpython-38.pyc
+            use_qq_bot_api.cpython-311.pyc
+            use_qq_bot_api.cpython-38.pyc
+            white_group.cpython-311.pyc
+            white_group.cpython-38.pyc
+            white_list_website.cpython-311.pyc
+            white_list_website.cpython-38.pyc
+            white_member.cpython-311.pyc
+            white_member.cpython-38.pyc
+            
