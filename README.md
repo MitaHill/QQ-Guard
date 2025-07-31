@@ -29,7 +29,7 @@ cd QQ-Guard
 
 2. **安装依赖**
 ```bash
-pip install -r requirements.txt
+pip install requests flask pillow
 ```
 
 3. **配置文件设置**
@@ -44,14 +44,33 @@ echo "your_qq_number" >> config/ctl-list.txt
 echo "group_id_1" >> config/monitor-groups.txt
 ```
 
-4. **配置 AI 服务**
+#### 注意
+
+配置QQ机器人API部分，需要你自行部署LLoneBot，并将API地址配置到`config/qq_bot_api.json`中
+
+---
+
+4. **配置 AI 服务**  编辑`info2ai/info2ai-config.json`
 ```bash
-# 编辑 info2ai/info2ai-config.json
 {
-    "api_key": "your_siliconflow_api_key",
-    "model": "deepseek-chat"
+  "api_base_url": "https://api.siliconflow.cn/v1",
+  "api_key": "API密钥填入这里",
+  "model_name": "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+  "knowledge_dir": "prompt-files",
+  "prompt_file": "prompt.txt",
+  "max_history": 30
 }
 ```
+
+建议模型选择`deepseek-ai/DeepSeek-R1-0528-Qwen3-8B`
+
+当然更大的模型更好
+
+不过硅基流动的API 10B以下模型才免费调用
+
+因此选择此模型是不错的选择
+
+
 
 5. **启动服务**
 ```bash
