@@ -16,8 +16,9 @@
 ### 环境要求
 
 - Python 3.8+
-- LLoneBot (QQ 机器人框架)
-- 硅基流动 API 账号或兼容OpenAI API
+- 安装了`Git`程序，或者打包项目下载也可以
+- LLoneBot (QQ 机器人框架) 不设置token，最好使用`docker`部署
+- 硅基流动API账号，或兼容OpenAI-API
 
 ### 安装部署
 
@@ -147,25 +148,6 @@ QQ-Guard/
 - 定时排行榜推送
 - 完整操作日志
 - CSV 数据导出
-
-## 🔧 Docker 部署
-
-```dockerfile
-FROM python:3.8-slim
-
-WORKDIR /app
-COPY . .
-
-RUN pip install -r requirements.txt
-RUN apt-get update && apt-get install -y fonts-dejavu-core
-
-CMD ["python", "main.py"]
-```
-
-```bash
-docker build -t qq-guard .
-docker run -d --name qq-guard-bot qq-guard
-```
 
 ## 📝 使用说明
 
