@@ -33,16 +33,20 @@ pip install requests flask pillow
 ```
 
 3. **配置文件设置**
-```bash
-# 配置 QQ 机器人 API
-cp config/qq_bot_api.json.example config/qq_bot_api.json
 
-# 配置管理员列表
-echo "your_qq_number" >> config/ctl-list.txt
+- 配置 QQ 机器人 API `/config/qq_bot_api.json`
 
-# 配置监控群组
-echo "group_id_1" >> config/monitor-groups.txt
 ```
+{
+  "http_url": "http://192.168.9.122:3000"
+}
+```
+
+
+- 配置监控群组 `config/monitor-groups.txt`
+
+  QQ号码，一行一个
+
 
 #### 注意
 
