@@ -1,0 +1,8 @@
+{
+  "api_base_url": "https://api.siliconflow.cn/v1",
+  "api_key": "sk-dpnpbtqxfmkjhhpkyxjgdkdtmqtvccbirokialfkbuullmsy",
+  "model_name": "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+  "knowledge_dir": "prompt-files",
+  "prompt_file": "prompt.txt",
+  "max_history": 30
+}

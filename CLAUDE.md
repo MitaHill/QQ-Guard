@@ -27,3 +27,34 @@
 
 
 将原本的`info2ai/prompt.txt`移动到`config/info2ai/prompt.txt`
+
+
+## 更新反馈
+
+
+2025-08-10 22:53
+
+
+运行良好。
+
+接下来请增加一个功能
+
+### 聊天功能
+
+
+请查询`LLoneBot`的API部分，并增加
+- `src/chat/`目录，作为模块的源目录。
+- `config/chat2ai/`目录，作为模块的配置目录，有模型的提示词、语料库、API设置。
+
+#### 具体功能
+- 当被`@`时，例如，这个机器人的名字叫做`加纳~`，有人发送了消息`@加纳~ 你在干什么呀`，则将此消息发送到模型处。
+- 设置`10%`的概率根据群聊中的上下文聊上几句，这个概率可以在`config/chat2ai/base-config.json`中设置。
+- 
+- 值得注意的地方：调用方式和`info2ai`一样函数直接调用，且也有
+  - `config/chat2ai/prompt-files/` 聊天模型语料库
+  - `config/chat2ai/base-config.json` 聊天模型基础设置
+  - `config/chat2ai/conversation_history.json` 上下文记忆数据
+  - `config/chat2ai/prompt.txt` 聊天提示词
+- 但不同的是，增加了以下文件
+  - `config/chat2ai/chat-group.txt` 可以进行聊天的群聊，只有在此群聊，聊天机器人才会激活。
+  - `config/chat2ai/chat-histroy/(QQ-Group-Number)/conversation_history.json`每个QQ群的上下文记录。例如`config/chat2ai/chat-histroy/1234567890/conversation_history.json`。
