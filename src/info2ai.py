@@ -4,8 +4,6 @@ import os
 import re
 import glob
 from typing import Optional
-from flask import Flask, jsonify
-
 
 class SiliconFlowClient:
     def __init__(self):
@@ -18,19 +16,23 @@ class SiliconFlowClient:
             "Content-Type": "application/json"
         }
         self.full_prompt = ""
-        self.cache_file = "conversation_history.json"
+        # 获取项目根目录（src的上一级目录）
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.cache_file = os.path.join(project_root, "config", "info2ai", "conversation_history.json")
         self.history = []
         self.max_history = self.config['max_history']
 
     def load_config(self):
         """加载配置文件"""
-        config_file = "info2ai-config.json"
+        # 获取项目根目录（src的上一级目录）
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_file = os.path.join(project_root, "config", "info2ai", "base-config.json")
         default_config = {
             "api_base_url": "https://api.siliconflow.cn/v1",
             "api_key": "sk-dpnpbtqxfmkjhhpkyxjgdkdtmqtvccbirokialfkbuullmsy",
             "model_name": "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
-            "knowledge_dir": "prompt-files",
-            "prompt_file": "prompt.txt",
+            "knowledge_dir": os.path.join(project_root, "config", "info2ai", "prompt-files"),
+            "prompt_file": os.path.join(project_root, "config", "info2ai", "prompt.txt"),
             "max_history": 30
         }
 
@@ -200,30 +202,28 @@ def init_siliconflow():
     return False
 
 
-# Flask应用
-app = Flask(__name__)
-
-
-@app.route('/info2ai/api/<path:content>')
-def judge_content(content):
-    """判断内容API"""
+def judge_content(content: str) -> bool:
+    """判断内容是否违规的公共函数"""
     global siliconflow_client
 
     if not siliconflow_client:
-        return jsonify(False)
+        return False
 
     try:
         result = siliconflow_client.judge(content)
-        return jsonify(result)
+        return result
     except Exception as e:
-        print(f"API错误: {e}")
-        return jsonify(False)
+        print(f"AI判断错误: {e}")
+        return False
 
 
 if __name__ == "__main__":
     print("初始化硅基流动AI系统...")
     if init_siliconflow():
-        print("🚀 启动Flask API服务器 (端口7000)")
-        app.run(host='127.0.0.1', port=7000, debug=False)
+        print("✅ 系统初始化成功")
+        # 测试功能
+        test_content = "测试消息"
+        result = judge_content(test_content)
+        print(f"测试结果: {result}")
     else:
         print("❌ 系统初始化失败")
