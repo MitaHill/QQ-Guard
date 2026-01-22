@@ -1,0 +1,12 @@
+app/db/
+app/log/
+pre-run/db/
+pre-run/log/
+pre-run/.env
+__pycache__/
+*.pyc
+.idea/
+.claude/
+app/WebUI/node_modules/
+app/WebUI/dist/
+app/WebUI/.vite/
