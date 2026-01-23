@@ -25,14 +25,6 @@
             <span class="dot"></span>
             <span>{{ needsReload ? '检测到配置更新' : '热重载已同步' }}</span>
           </div>
-          <button class="button secondary" @click="reloadConfig">同步</button>
-          <button
-            class="button"
-            @click="saveConfig"
-            :disabled="activeSection === chatSectionKey || activeSection === logsSectionKey"
-          >
-            保存配置
-          </button>
         </div>
       </div>
 
@@ -67,7 +59,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { apiGet, apiPut } from './api'
 import ConfigField from './components/ConfigField.vue'
 import ChatView from './components/ChatView.vue'
@@ -81,6 +73,9 @@ const needsReload = ref(false)
 const activeSection = ref('')
 const chatSectionKey = '__chat__'
 const logsSectionKey = '__logs__'
+const skipAutoSave = ref(true)
+const autoSaveTimer = ref(null)
+const isReloading = ref(false)
 
 const sections = {
   app: { label: '基础设置', type: 'config' },
@@ -152,18 +147,28 @@ function cloneConfig(data) {
 }
 
 async function reloadConfig() {
+  isReloading.value = true
   const data = await apiGet('/api/config')
   configDraft.value = cloneConfig(data.config || {})
   configVersion.value = data.version || 0
   needsReload.value = false
+  skipAutoSave.value = true
+  if (autoSaveTimer.value) {
+    clearTimeout(autoSaveTimer.value)
+    autoSaveTimer.value = null
+  }
   if (!activeSection.value) {
     activeSection.value = 'app'
   }
+  isReloading.value = false
 }
 
-async function saveConfig() {
-  await apiPut('/api/config', configDraft.value)
-  await reloadConfig()
+async function autoSaveConfig() {
+  const data = await apiPut('/api/config', configDraft.value)
+  if (data && typeof data.version === 'number') {
+    configVersion.value = data.version
+  }
+  needsReload.value = false
 }
 
 async function checkConfigVersion() {
@@ -171,6 +176,7 @@ async function checkConfigVersion() {
   const version = data.version || 0
   if (version !== configVersion.value) {
     needsReload.value = true
+    await reloadConfig()
   }
 }
 
@@ -178,4 +184,27 @@ onMounted(async () => {
   await reloadConfig()
   setInterval(checkConfigVersion, 2000)
 })
+
+watch(
+  configDraft,
+  () => {
+    if (skipAutoSave.value) {
+      skipAutoSave.value = false
+      return
+    }
+    if (isReloading.value) return
+    if (autoSaveTimer.value) {
+      clearTimeout(autoSaveTimer.value)
+    }
+    autoSaveTimer.value = setTimeout(async () => {
+      try {
+        await autoSaveConfig()
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error(error)
+      }
+    }, 600)
+  },
+  { deep: true }
+)
 </script>

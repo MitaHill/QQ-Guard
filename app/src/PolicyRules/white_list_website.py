@@ -1,5 +1,6 @@
 import re
 import ipaddress
+import urllib.parse
 from typing import List, Tuple
 
 from src.AppConfig.app_config_store import AppConfigStore
@@ -70,18 +71,29 @@ class WebsiteWhitelistChecker:
 
             # 子域名模式: all>qq.com
             if line.startswith('all>'):
-                domain = line[4:].strip()
+                domain = self._normalize_domain(line[4:].strip())
+                if not domain:
+                    return
                 self.subdomain_patterns.append(domain)
                 return
 
             # 顶级域名模式: top>.cn
             if line.startswith('top>'):
-                tld = line[4:].strip()
+                tld = self._normalize_domain(line[4:].strip())
+                if not tld:
+                    return
                 self.tld_patterns.append(tld)
                 return
 
             # 普通域名
-            self.white_sites.append(line)
+            normalized = self._normalize_domain(line)
+            if not normalized:
+                return
+            if self._is_ip_address(normalized):
+                ip = ipaddress.IPv4Address(normalized)
+                self.ip_ranges_manual.append((ip, ip))
+                return
+            self.white_sites.append(normalized)
 
         except Exception as e:
             # 模块中使用异常而不是print，让调用者决定如何处理
@@ -102,6 +114,21 @@ class WebsiteWhitelistChecker:
             return True
         except:
             return False
+
+    def _normalize_domain(self, value: str) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+        if "://" in text:
+            parsed = urllib.parse.urlparse(text)
+            text = parsed.netloc or parsed.path
+        if "/" in text:
+            text = text.split("/")[0]
+        if ":" in text:
+            text = text.split(":")[0]
+        if text.startswith("www."):
+            text = text[4:]
+        return text.lower()
 
     def _reset_config(self):
         """重置配置"""
@@ -152,11 +179,13 @@ class WebsiteWhitelistChecker:
 
     def _check_domain_whitelist(self, domain: str) -> bool:
         """检查域名是否在白名单中"""
-        domain = domain.lower()
+        domain = self._normalize_domain(domain)
+        if not domain:
+            return False
 
         # 检查普通域名
         for white_site in self.white_sites:
-            if white_site.lower() in domain:
+            if domain == white_site or domain.endswith('.' + white_site):
                 return True
 
         # 检查子域名模式 (all>qq.com)

@@ -1,3 +1,4 @@
+import json
 import os
 import logging
 
@@ -63,23 +64,46 @@ class SystemLogger:
 
     def info(self, message):
         """记录信息日志"""
-        self.logger.info(message)
+        self.logger.info(self._format_message(message))
         self._check_size_after_write()
 
     def error(self, message):
         """记录错误日志"""
-        self.logger.error(message)
+        self.logger.error(self._format_message(message))
         self._check_size_after_write()
 
     def warning(self, message):
         """记录警告日志"""
-        self.logger.warning(message)
+        self.logger.warning(self._format_message(message))
         self._check_size_after_write()
 
     def debug(self, message):
         """记录调试日志"""
-        self.logger.debug(message)
+        self.logger.debug(self._format_message(message))
         self._check_size_after_write()
+
+    def info_event(self, module, action, data=None):
+        payload = {"module": module, "action": action}
+        if data:
+            payload.update(data)
+        self.info(payload)
+
+    def warning_event(self, module, action, data=None):
+        payload = {"module": module, "action": action}
+        if data:
+            payload.update(data)
+        self.warning(payload)
+
+    def error_event(self, module, action, data=None):
+        payload = {"module": module, "action": action}
+        if data:
+            payload.update(data)
+        self.error(payload)
+
+    def _format_message(self, message):
+        if isinstance(message, dict):
+            return json.dumps(message, ensure_ascii=False, separators=(",", ":"))
+        return str(message)
 
     def _check_size_after_write(self):
         """写入后检查文件大小"""

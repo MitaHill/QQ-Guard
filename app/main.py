@@ -29,17 +29,17 @@ class OneBotTest:
         self.stats_lock = threading.Lock()
 
         # 初始化模块
+        self.sys_logger = SystemLogger()
         self.qq_api = OneBotHttpClient()
         self.monitor = MonitorGroups()
         self.white_member = WhiteMemberChecker()
         self.white_group = WhiteGroupChecker()
         self.website_checker = WebsiteWhitelistChecker()
         self.black_rules = BlackRulesChecker()
-        self.ai_api = AiService()
+        self.ai_api = AiService(self.sys_logger)
         self.recaller = MessageRecaller(self.qq_api)
         self.sender = MessageSender(self.qq_api)
         self.csv_logger = CSVLogger()
-        self.sys_logger = SystemLogger()
         self.ranking_drawer = RankingDrawer()
         self.admin_notifier = AdminNotifier(self.sender)
 
@@ -55,7 +55,7 @@ class OneBotTest:
         self.ai_api.start_service()
         self.start_timers()
         self.ai_queue.start_worker()
-        self.sys_logger.info("系统初始化完成")
+        self.sys_logger.info_event("system", "init_complete", {})
 
     def start_timers(self):
         def flush_logs():
@@ -81,9 +81,16 @@ class OneBotTest:
 
         username = self.qq_api.get_user_info(user_id, group_id)
         parsed_message = self.qq_api.parse_message(raw_message).strip()
+        normalized_raw = self._normalize_raw_message(raw_message)
+        self.sys_logger.info_event("message", "received", self._base_context(
+            user_id, username, group_id, message_id, parsed_message, normalized_raw
+        ))
         self.store_chat_message(group_id, user_id, username, message_id, parsed_message, raw_message)
 
         if self.white_member.is_whitelisted(user_id):
+            self.sys_logger.info_event("white_member", "bypass", self._base_context(
+                user_id, username, group_id, message_id, parsed_message, normalized_raw
+            ))
             self.csv_logger.log_message(user_id, username, group_id, parsed_message, is_whitelist=True)
             return
 
@@ -128,6 +135,14 @@ class OneBotTest:
 
         # 群聊分享检查
         is_group_share, is_share_whitelisted, shared_group_id = self.white_group.check_group_share(raw_message)
+        self.sys_logger.info_event("group_share", "check", {
+            **self._base_context(user_id, username, group_id, message_id, parsed_message, self._normalize_raw_message(raw_message)),
+            "is_group_share": is_group_share,
+            "shared_group_id": shared_group_id,
+            "is_whitelisted": is_share_whitelisted,
+            "method": "json_share_keyword",
+            "result": "block" if (is_group_share and not is_share_whitelisted) else "pass",
+        })
         if is_group_share and not is_share_whitelisted:
             self.handle_violation(user_id, username, group_id, message_id, parsed_message,
                                   "群聊分享违规", f"非白名单群聊: {shared_group_id}")
@@ -135,6 +150,12 @@ class OneBotTest:
 
         # 网站检查
         is_website_ok, domains = self.website_checker.check_whitelist(parsed_message)
+        self.sys_logger.info_event("website_whitelist", "check", {
+            **self._base_context(user_id, username, group_id, message_id, parsed_message, self._normalize_raw_message(raw_message)),
+            "targets": domains,
+            "method": "domain_whitelist",
+            "result": "pass" if is_website_ok else "block",
+        })
         if not is_website_ok:
             self.handle_violation(user_id, username, group_id, message_id, parsed_message,
                                   "网站违规", f"非白名单网站: {domains}")
@@ -142,12 +163,21 @@ class OneBotTest:
 
         # 黑名单检查
         is_blacklisted, rule = self.black_rules.check_rules(parsed_message)
+        self.sys_logger.info_event("black_rules", "check", {
+            **self._base_context(user_id, username, group_id, message_id, parsed_message, self._normalize_raw_message(raw_message)),
+            "matched_rule": rule,
+            "method": "keyword_match",
+            "result": "block" if is_blacklisted else "pass",
+        })
         if is_blacklisted:
             self.handle_violation(user_id, username, group_id, message_id, parsed_message,
                                   "黑名单违规", f"触发规则: {rule}")
             return
 
         # AI检测
+        self.sys_logger.info_event("ai_queue", "enqueue", self._base_context(
+            user_id, username, group_id, message_id, parsed_message, self._normalize_raw_message(raw_message)
+        ))
         self.ai_queue.add_message(user_id, username, group_id, message_id, parsed_message)
 
     def handle_violation(self, user_id, username, group_id, message_id, parsed_message, violation_type, reason):
@@ -158,6 +188,12 @@ class OneBotTest:
             self.violation_stats[user_id] += 1
 
         action_text = violation_type + ("" if success else " 但撤回失败")
+        self.sys_logger.info_event("violation", "handled", {
+            **self._base_context(user_id, username, group_id, message_id, parsed_message, None),
+            "violation_type": violation_type,
+            "reason": reason,
+            "recall_success": success,
+        })
         self.admin_notifier.notify_violation(user_id, group_id, action_text)
 
     def poll_messages(self):
@@ -192,9 +228,9 @@ class OneBotTest:
     def start_websocket(self):
         ws_url = self.qq_api.ws_url
         if not ws_url:
-            self.sys_logger.error("WebSocket 模式缺少 qq_bot_api.ws_url 配置")
+            self.sys_logger.error_event("system", "ws_missing_config", {"key": "qq_bot_api.ws_url"})
             return
-        self.sys_logger.info(f"WebSocket 模式启动: {ws_url}")
+        self.sys_logger.info_event("system", "ws_start", {"ws_url": ws_url})
         self.ws_client = OneBotWebSocketClient(
             ws_url=ws_url,
             token=self.qq_api.token,
@@ -218,8 +254,8 @@ class OneBotTest:
         self.http_post_server.start()
 
     def start(self):
-        self.sys_logger.info(f"监控群组: {self.monitor.get_groups()}")
-        self.sys_logger.info("启动消息监控...")
+        self.sys_logger.info_event("system", "monitor_groups", {"groups": self.monitor.get_groups()})
+        self.sys_logger.info_event("system", "monitor_start", {})
 
         try:
             mode = str(self.qq_api.mode or "http_post").lower()
@@ -228,13 +264,34 @@ class OneBotTest:
             elif mode in {"http_post", "http"}:
                 self.start_http_post()
             else:
-                self.poll_messages()
+            self.poll_messages()
         except KeyboardInterrupt:
-            self.sys_logger.info("正在退出...")
+            self.sys_logger.info_event("system", "shutdown", {})
             if self.ws_client:
                 self.ws_client.stop()
             if self.http_post_server:
                 self.http_post_server.stop()
+
+    def _normalize_raw_message(self, raw_message):
+        if isinstance(raw_message, str):
+            return raw_message
+        try:
+            return json.dumps(raw_message, ensure_ascii=False)
+        except Exception:
+            return str(raw_message)
+
+    def _base_context(self, user_id, username, group_id, message_id, parsed_message=None, raw_message=None):
+        context = {
+            "group_id": str(group_id),
+            "user_id": str(user_id),
+            "username": username or "",
+            "message_id": str(message_id),
+        }
+        if parsed_message is not None:
+            context["parsed_message"] = parsed_message
+        if raw_message is not None:
+            context["raw_message"] = raw_message
+        return context
 
 
 if __name__ == "__main__":

@@ -701,6 +701,7 @@ info2ai:
   request_timeout_seconds: 600
 monitor_groups:
 - 1017958307
+- 297215116
 qq_bot_api:
   http_post:
     host: 0.0.0.0
@@ -715,7 +716,6 @@ qq_bot_api:
   ws_url: ws://192.168.9.4:3005
 website_whitelist:
 - bilibili.com
-- all>baidu.com
 - zhihu.com
 - all>qq.com
 - qpic.cn
@@ -752,10 +752,4 @@ white_groups:
 - 974869856
 - 973414977
 - 1031058659
-white_members:
-- 3543633852
-- 1023263155
-- 1516045226
-- 2054735699
-- 3988673788
-- 2609354650
+white_members: []

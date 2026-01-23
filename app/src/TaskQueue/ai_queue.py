@@ -36,7 +36,7 @@ class AIQueue:
                 except queue.Empty:
                     continue
                 except Exception as e:
-                    self.sys_logger.error(f"AI队列处理错误: {e}")
+                    self.sys_logger.error_event("ai_queue", "worker_error", {"error": str(e)})
 
         threading.Thread(target=ai_worker, daemon=True).start()
         self.sys_logger.info("AI队列工作线程已启动")
@@ -51,9 +51,25 @@ class AIQueue:
         start_time = time.time()
 
         try:
+            self.sys_logger.info_event("ai_queue", "judge_start", {
+                "group_id": str(group_id),
+                "user_id": str(user_id),
+                "username": username,
+                "message_id": str(message_id),
+                "message": parsed_message,
+            })
             is_violation = self.ai_api.judge_message(user_id, parsed_message)
             response_time = time.time() - start_time
 
+            self.sys_logger.info_event("ai_queue", "judge_result", {
+                "group_id": str(group_id),
+                "user_id": str(user_id),
+                "username": username,
+                "message_id": str(message_id),
+                "message": parsed_message,
+                "is_violation": is_violation,
+                "response_time_seconds": round(response_time, 3),
+            })
             if is_violation:
                 success = self.recaller.delete_message(message_id)
                 self.csv_logger.log_message(user_id, username, group_id, parsed_message,
@@ -64,7 +80,14 @@ class AIQueue:
                                             False, False, "", "", response_time)
 
         except Exception as e:
-            self.sys_logger.error(f"AI检测异常: {e}")
+            self.sys_logger.error_event("ai_queue", "judge_error", {
+                "group_id": str(group_id),
+                "user_id": str(user_id),
+                "username": username,
+                "message_id": str(message_id),
+                "message": parsed_message,
+                "error": str(e),
+            })
             self.csv_logger.log_message(user_id, username, group_id, parsed_message,
                                         False, False, "异常", str(e), time.time() - start_time)
 
