@@ -1,7 +1,15 @@
+import csv
+import io
 import os
-from flask import Flask, jsonify, request, send_from_directory
+import zipfile
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+import yaml
+from flask import Flask, jsonify, request, send_file, send_from_directory
 from flask_cors import CORS
 
+from src.AiCore.ai_factory import create_ai_client_from_config
 from src.AppConfig.app_config_store import APP_ROOT, AppConfigStore
 from src.DataStore.chat_history_store import ChatHistoryStore
 
@@ -63,6 +71,147 @@ def create_app():
         offset = request.args.get("offset", 0)
         messages = chat_store.fetch_group_messages(group_id, limit=limit, offset=offset)
         return jsonify({"success": True, "messages": messages})
+
+    def _format_export_timestamp():
+        return datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y%m%d_%H%M%S")
+
+    def _export_rows(messages):
+        header = ["id", "group_id", "user_id", "username", "message_id", "message", "raw_message", "created_at"]
+        rows = []
+        for msg in messages:
+            rows.append([
+                msg.get("id", ""),
+                msg.get("group_id", ""),
+                msg.get("user_id", ""),
+                msg.get("username", ""),
+                msg.get("message_id", ""),
+                msg.get("message", ""),
+                msg.get("raw_message", ""),
+                msg.get("created_at", ""),
+            ])
+        return header, rows
+
+    def _build_csv_bytes(messages):
+        output = io.StringIO()
+        writer = csv.writer(output)
+        header, rows = _export_rows(messages)
+        writer.writerow(header)
+        writer.writerows(rows)
+        return output.getvalue().encode("utf-8-sig")
+
+    def _build_yaml_bytes(payload):
+        text = yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
+        return text.encode("utf-8")
+
+    def _group_payload(group_id, messages):
+        return {
+            "group_id": str(group_id),
+            "exported_at": datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M:%S"),
+            "messages": messages,
+        }
+
+    def _all_payload(grouped):
+        return {
+            "exported_at": datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M:%S"),
+            "groups": grouped,
+        }
+
+    @app.get("/api/chat/export/group/<group_id>")
+    def export_group(group_id):
+        export_format = request.args.get("format", "csv").lower()
+        messages = chat_store.fetch_group_messages_for_export(group_id)
+        timestamp = _format_export_timestamp()
+        if export_format == "yaml":
+            payload = _group_payload(group_id, messages)
+            data = _build_yaml_bytes(payload)
+            filename = f"chat_{group_id}_{timestamp}.yaml"
+            return send_file(io.BytesIO(data), mimetype="text/yaml", as_attachment=True, download_name=filename)
+        data = _build_csv_bytes(messages)
+        filename = f"chat_{group_id}_{timestamp}.csv"
+        return send_file(io.BytesIO(data), mimetype="text/csv", as_attachment=True, download_name=filename)
+
+    @app.get("/api/chat/export/all")
+    def export_all_groups():
+        export_format = request.args.get("format", "csv").lower()
+        grouped = chat_store.fetch_all_messages_grouped()
+        timestamp = _format_export_timestamp()
+        if export_format == "yaml":
+            payload = _all_payload(grouped)
+            data = _build_yaml_bytes(payload)
+            filename = f"chat_all_{timestamp}.yaml"
+            return send_file(io.BytesIO(data), mimetype="text/yaml", as_attachment=True, download_name=filename)
+        all_messages = []
+        for messages in grouped.values():
+            all_messages.extend(messages)
+        data = _build_csv_bytes(all_messages)
+        filename = f"chat_all_{timestamp}.csv"
+        return send_file(io.BytesIO(data), mimetype="text/csv", as_attachment=True, download_name=filename)
+
+    @app.get("/api/chat/export/all-zip")
+    def export_all_groups_zip():
+        export_format = request.args.get("format", "csv").lower()
+        grouped = chat_store.fetch_all_messages_grouped()
+        timestamp = _format_export_timestamp()
+        extension = "yaml" if export_format == "yaml" else "csv"
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as zipf:
+            for group_id, messages in grouped.items():
+                if extension == "yaml":
+                    payload = _group_payload(group_id, messages)
+                    data = _build_yaml_bytes(payload)
+                else:
+                    data = _build_csv_bytes(messages)
+                filename = f"group_{group_id}.{extension}"
+                zipf.writestr(filename, data)
+        buffer.seek(0)
+        zip_name = f"chat_all_{timestamp}.zip"
+        return send_file(buffer, mimetype="application/zip", as_attachment=True, download_name=zip_name)
+
+    @app.post("/api/ai/test")
+    def test_ai():
+        payload = request.get_json(silent=True) or {}
+        message = str(payload.get("message", "Hi"))
+        info2ai_config = payload.get("info2ai")
+        if not isinstance(info2ai_config, dict):
+            config = AppConfigStore.get()
+            info2ai_config = config.get("info2ai", {}) or {}
+        try:
+            client = create_ai_client_from_config(info2ai_config, use_env=False)
+            client.load_knowledge_base()
+            client.load_history()
+            response = client.chat(message)
+            if not response:
+                return jsonify({"success": False, "error": "未获取到模型回复"}), 500
+            return jsonify({"success": True, "response": response})
+        except Exception as exc:
+            return jsonify({"success": False, "error": str(exc)}), 500
+
+    def read_log_lines(log_path, limit):
+        if limit <= 0:
+            limit = 200
+        if not os.path.exists(log_path):
+            return []
+        try:
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+            return [line.rstrip("\n") for line in lines[-limit:]]
+        except Exception:
+            return []
+
+    @app.get("/api/logs/system")
+    def get_system_logs():
+        limit = request.args.get("limit", 200)
+        try:
+            limit = int(limit)
+        except ValueError:
+            limit = 200
+        limit = min(max(limit, 1), 2000)
+        log_path = os.path.join(APP_ROOT, "log", "sys.log")
+        lines = read_log_lines(log_path, limit)
+        updated_at = ""
+        if os.path.exists(log_path):
+            updated_at = datetime.fromtimestamp(os.path.getmtime(log_path)).strftime("%Y-%m-%d %H:%M:%S")
+        return jsonify({"success": True, "lines": lines, "updated_at": updated_at})
 
     if static_dir:
         @app.get("/")

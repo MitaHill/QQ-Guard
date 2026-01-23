@@ -54,6 +54,8 @@ class OneBotWebSocketClient:
         if not self.ws_url:
             raise ValueError("WebSocket URL 为空")
         while not self._stop_event.is_set():
+            ping_interval = max(2, int(self.ping_interval_seconds))
+            ping_timeout = max(1, ping_interval - 1)
             self._ws_app = websocket.WebSocketApp(
                 self.ws_url,
                 header=self._build_headers(),
@@ -63,8 +65,8 @@ class OneBotWebSocketClient:
                 on_close=self._on_close,
             )
             self._ws_app.run_forever(
-                ping_interval=self.ping_interval_seconds,
-                ping_timeout=max(5, self.ping_interval_seconds + 5),
+                ping_interval=ping_interval,
+                ping_timeout=ping_timeout,
             )
             if self._stop_event.is_set():
                 break

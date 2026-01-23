@@ -31,6 +31,36 @@
         </button>
       </div>
 
+      <div class="export-panel">
+        <div class="export-row">
+          <span class="export-title">导出当前群聊</span>
+          <button class="button secondary" @click="exportGroup('csv')" :disabled="!activeGroup || exporting">
+            CSV
+          </button>
+          <button class="button secondary" @click="exportGroup('yaml')" :disabled="!activeGroup || exporting">
+            YAML
+          </button>
+        </div>
+        <div class="export-row">
+          <span class="export-title">导出全部群聊（单文件）</span>
+          <button class="button secondary" @click="exportAllSingle('csv')" :disabled="exporting">
+            CSV
+          </button>
+          <button class="button secondary" @click="exportAllSingle('yaml')" :disabled="exporting">
+            YAML
+          </button>
+        </div>
+        <div class="export-row">
+          <span class="export-title">导出全部群聊（分文件压缩包）</span>
+          <button class="button secondary" @click="exportAllZip('csv')" :disabled="exporting">
+            CSV
+          </button>
+          <button class="button secondary" @click="exportAllZip('yaml')" :disabled="exporting">
+            YAML
+          </button>
+        </div>
+      </div>
+
       <div v-if="messages.length === 0" class="empty">当前群暂无聊天记录</div>
       <div v-else class="chat-list">
         <div v-for="msg in messages" :key="msg.id" class="chat-card">
@@ -45,8 +75,8 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
-import { apiGet } from '../api'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { apiDownload, apiGet } from '../api'
 
 const groups = ref([])
 const activeGroup = ref('')
@@ -54,6 +84,8 @@ const messages = ref([])
 const offset = ref(0)
 const pageSize = 50
 const loadingMore = ref(false)
+const exporting = ref(false)
+let refreshTimer = null
 
 async function loadGroups() {
   const data = await apiGet('/api/chat/groups')
@@ -94,7 +126,65 @@ async function loadMore() {
   loadingMore.value = false
 }
 
+function timestampTag() {
+  const now = new Date()
+  const pad = value => String(value).padStart(2, '0')
+  const y = now.getFullYear()
+  const m = pad(now.getMonth() + 1)
+  const d = pad(now.getDate())
+  const hh = pad(now.getHours())
+  const mm = pad(now.getMinutes())
+  const ss = pad(now.getSeconds())
+  return `${y}${m}${d}_${hh}${mm}${ss}`
+}
+
+async function exportGroup(format) {
+  if (!activeGroup.value) return
+  exporting.value = true
+  try {
+    const filename = `chat_${activeGroup.value}_${timestampTag()}.${format}`
+    await apiDownload(`/api/chat/export/group/${activeGroup.value}?format=${format}`, filename)
+  } catch (error) {
+    alert(error.message || '导出失败')
+  } finally {
+    exporting.value = false
+  }
+}
+
+async function exportAllSingle(format) {
+  exporting.value = true
+  try {
+    const filename = `chat_all_${timestampTag()}.${format}`
+    await apiDownload(`/api/chat/export/all?format=${format}`, filename)
+  } catch (error) {
+    alert(error.message || '导出失败')
+  } finally {
+    exporting.value = false
+  }
+}
+
+async function exportAllZip(format) {
+  exporting.value = true
+  try {
+    const filename = `chat_all_${timestampTag()}.zip`
+    await apiDownload(`/api/chat/export/all-zip?format=${format}`, filename)
+  } catch (error) {
+    alert(error.message || '导出失败')
+  } finally {
+    exporting.value = false
+  }
+}
+
 onMounted(() => {
   loadGroups()
+  refreshTimer = setInterval(() => {
+    if (activeGroup.value) {
+      loadMessages(true)
+    }
+  }, 5000)
+})
+
+onBeforeUnmount(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
 })
 </script>

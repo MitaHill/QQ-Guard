@@ -63,6 +63,12 @@
 
 修改完 -> 提交 -> 测试 -> 若有问题回到开始，若无问题则同步远程仓库一次。
 
+前端构建步骤（本机 Node/NPM，官方源）：
+- 进入 `app/WebUI`
+- 设置 npm 源为 `https://registry.npmjs.org`
+- 执行 `npm install --no-fund --no-audit`
+- 执行 `npm run build`（生成 `app/WebUI/dist`）
+
 ## 当前约定与参数（覆盖历史记录）
 
 - **分支**: 本次大改使用 `big-change` 分支。

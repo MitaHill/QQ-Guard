@@ -1,5 +1,7 @@
 import os
 import sqlite3
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from src.AppConfig.app_config_store import APP_ROOT
 
@@ -65,10 +67,14 @@ class ConversationHistoryStore:
         return history
 
     def add_turn(self, user_content: str, assistant_content: str, max_history: int):
+        created_at = _now_shanghai()
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
-                f"INSERT INTO {self.table_name} (user_content, assistant_content) VALUES (?, ?)",
-                (user_content, assistant_content),
+                f"""
+                INSERT INTO {self.table_name} (user_content, assistant_content, created_at)
+                VALUES (?, ?, ?)
+                """,
+                (user_content, assistant_content, created_at),
             )
             conn.commit()
         self.trim_history(max_history)
@@ -103,3 +109,7 @@ class ConversationHistoryStore:
                 keep_ids,
             )
             conn.commit()
+
+
+def _now_shanghai():
+    return datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M:%S")

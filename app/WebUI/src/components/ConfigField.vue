@@ -1,6 +1,6 @@
 <template>
   <div class="field">
-    <label v-if="label">{{ label }}</label>
+    <label v-if="displayLabel && !hideLabel">{{ displayLabel }}</label>
 
     <div v-if="isArray">
       <div v-if="useTextarea">
@@ -40,7 +40,9 @@
       <ConfigField
         v-for="(value, key) in modelValue"
         :key="key"
-        :label="key"
+        :field-key="key"
+        :path="nextPath(key)"
+        :label-map="labelMap"
         :model-value="value"
         @update:modelValue="updateObjectField(key, $event)"
       />
@@ -82,6 +84,22 @@ const props = defineProps({
   label: {
     type: String,
     default: ''
+  },
+  labelMap: {
+    type: Object,
+    default: null
+  },
+  fieldKey: {
+    type: String,
+    default: ''
+  },
+  path: {
+    type: String,
+    default: ''
+  },
+  hideLabel: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -102,6 +120,19 @@ const useTextarea = computed(() => {
   if (props.modelValue.length > 50) return true
   return arrayItemType.value === 'string' && props.modelValue.join('').length > 280
 })
+
+const displayLabel = computed(() => {
+  if (props.label) return props.label
+  const map = props.labelMap || {}
+  if (props.path && map[props.path]) return map[props.path]
+  if (props.fieldKey && map[props.fieldKey]) return map[props.fieldKey]
+  return props.fieldKey
+})
+
+function nextPath(key) {
+  if (!props.path) return key
+  return `${props.path}.${key}`
+}
 
 const arrayText = computed(() => {
   if (!isArray.value) return ''
